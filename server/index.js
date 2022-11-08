@@ -8,7 +8,9 @@ const port = process.env.PORT || 3000
 
 app.use(express.json())
 app.use('/', router)
-app.get('/loaderio-12f7a3c1f129dc82f35cb36acf434d3d.html')
+app.get('/loaderio-12f7a3c1f129dc82f35cb36acf434d3d.html', (req, res) => {
+  res.send('loaderio-12f7a3c1f129dc82f35cb36acf434d3d')
+})
 
 
 app.listen(port, function () {
