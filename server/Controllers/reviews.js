@@ -112,12 +112,9 @@ const reviews = {
 
   // ----------------------------------------- TEST REQUEST -----------------------------------------
   test: async (req, res) => {
-    let response
-    try {
-      response = await pool.query(`SELECT * FROM reviews LIMIT 5`)
-      res.status(200)
-      res.send(response.rows)
-    } catch (e) { console.log(e) }
+    const result = await pool.query(`SELECT * FROM meta LIMIT 5;`)
+    res.status(200)
+    res.send(result.rows)
   }
 }
 
