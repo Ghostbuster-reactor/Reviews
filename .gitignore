@@ -10,6 +10,7 @@
 *.userosscache
 *.sln.docstates
 .env
+k6scripts.js
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

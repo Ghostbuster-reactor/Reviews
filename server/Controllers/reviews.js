@@ -10,12 +10,12 @@ const reviews = {
     if (req.query.sort === 'newest') req.query.sort = 'date'
 
     // create parameters
-    const queryArgs = [req.query.product_id, req.query.page || 0, req.query.count || 5]
+    const queryArgs = [req.query.product_id, req.query.page - 1 || 0, req.query.count || 5]
 
     // try query
     try {
-      const result = await pool.query(`
-      SELECT review_id, rating, summary, recommend, response, body, to_timestamp(date/1000) as date, reviewer_name, helpfulness,
+      const result = await pool.query(
+        `SELECT review_id, rating, summary, recommend, response, body, date, reviewer_name, helpfulness,
         (SELECT json_agg(json_build_object('id', photos.id, 'url', photos.url)) FROM photos WHERE review_id = reviews.review_id
         ) as photos, reported FROM reviews
       WHERE product_id = $1 AND reported = FALSE
@@ -23,26 +23,36 @@ const reviews = {
       OFFSET $2
       LIMIT $3`, queryArgs)
 
-      // end response
+      // reformat response and send
       res.status(200)
-      res.send(result.rows)
+      res.send({ product: queryArgs[0], page: queryArgs[1], count: queryArgs[2], results: result.rows })
     } catch (e) { console.log(e) }
   },
 
   // ----------------------------------------- POST REQUEST -----------------------------------------
   post: async (req, res) => {
+
+    // set up parameters
     let params1 = [req.body.product_id, req.body.rating, req.body.summary || null, req.body.body || null, req.body.recommend, req.body.name, req.body.email]
     try {
-      pool.query(`INSERT INTO reviews (review_id, product_id, rating, summary, body, recommend, reviewer_name, reviewer_email)
-    VALUES (nextval('reviews_review_id_seq'::regclass), $1,$2,$3,$4,$5,$6,$7)`, params1)
+
+      // post to reviews
+      pool.query(`INSERT INTO reviews (date, product_id, rating, summary, body, recommend, reviewer_name, reviewer_email)
+    VALUES (CURRENT_TIMESTAMP,$1,$2,$3,$4,$5,$6,$7)`, params1)
       const response = await pool.query(`SELECT MAX(review_id) FROM reviews`)
+
+      // iterate through photos array and post to photos
       for (let i = 0; i < req.body.photos.length; i++) {
         pool.query(`INSERT INTO photos (review_id, url) VALUES ($1,$2)`, [response.rows[0].max, req.body.photos[i]])
       }
+
+      // iterate through charateristics and update characteristics
       let meta_keys = Object.keys(req.body.characteristics)
       for (i of meta_keys) {
         pool.query(`INSERT INTO meta (characteristic_id, review_id, value) VALUES ($1,$2,$3)`, [Number(i), response.rows[0].max, req.body.characteristics[i]])
       }
+
+      // end
       res.status(201)
       res.send('CREATED!')
 
@@ -51,6 +61,23 @@ const reviews = {
 
   // ----------------------------------------- META REQUEST -----------------------------------------
   meta: async (req, res) => {
+
+    // create holder object that stores characteristics
+    let characteristics = {}
+
+    // create an array that holds char id and name
+    const char = await pool.query(`
+    SELECT id, name FROM characteristics WHERE product_id = ${req.query.product_id}
+    `)
+
+    // iterate through array
+    for (i of char.rows) {
+      let valueAvg = await pool.query(`
+      SELECT AVG(value) FROM meta WHERE characteristic_id = ${i.id}
+      `)
+      characteristics[i.name] = { id: i.id, value: valueAvg.rows[0].avg }
+    }
+
     const result = await pool.query(`
       SELECT ${req.query.product_id} as product_id, json_build_object (
         '1', (SELECT COUNT (rating) FROM reviews WHERE rating = 1 AND product_id = ${req.query.product_id}),
@@ -66,13 +93,11 @@ const reviews = {
         json_build_object (
 
         ) as characteristics`)
+    result.rows[0].characteristics = characteristics
     res.status(200)
     res.send(result.rows[0])
   },
 
-
-  // 'ratings', json_build_object(
-  //   '1', (SELECT COUNT (rating) FROM reviews WHERE rating = 1))
   // ----------------------------------------- HELPFUL REQUEST -----------------------------------------
   helpful: (req, res) => {
     pool.query(`UPDATE reviews SET helpfulness = helpfulness + 1 WHERE review_id = $1`, [req.params.review_id])
@@ -82,7 +107,7 @@ const reviews = {
   // ----------------------------------------- REPORT REQUEST -----------------------------------------
   report: (req, res) => {
     pool.query(`UPDATE reviews SET reported = true WHERE review_id = $1`, [req.params.review_id])
-      .then(() => res.status(204).send('lets make sure this works'))
+      .then(() => res.status(204).send())
   },
 
   // ----------------------------------------- TEST REQUEST -----------------------------------------
