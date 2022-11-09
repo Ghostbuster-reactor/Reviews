@@ -3,7 +3,7 @@ const pool = require('../../database/db.js')
 const reviews = {
   // ----------------------------------------- GET REQUEST -----------------------------------------
   get: async (req, res) => {
-
+    console.log('Serving GET request')
     // set sort parameter to be a column name if listed
     if (!req.query.sort) req.query.sort = 'review_id'
     if (req.query.sort === 'helpful') req.query.sort = 'helpfulness'
