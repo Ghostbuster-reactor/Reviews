@@ -112,9 +112,23 @@ const reviews = {
 
   // ----------------------------------------- TEST REQUEST -----------------------------------------
   test: async (req, res) => {
-    const result = await pool.query(`SELECT * FROM meta LIMIT 5;`)
+    const limit = await pool.query(`SELECT MAX(product_id) FROM reviews`)
+    const range = limit.rows[0].max * 0.1
+
+    let cart = []
+    for (let i = 0; i < 5; i++) {
+      let temp_product_id = Math.floor(Math.random() * range) + Math.floor(limit.rows[0].max * 0.9)
+
+      let temp = await pool.query(`
+      SELECT review_id, rating, summary, recommend, response, body, date, reviewer_name, helpfulness,
+      (SELECT json_agg(json_build_object('id', photos.id, 'url', photos.url)) FROM photos WHERE review_id = reviews.review_id
+      ) as photos, reported FROM reviews
+    WHERE product_id = ${temp_product_id} AND reported = FALSE
+    LIMIT 5`)
+      cart.push(temp.rows)
+    }
     res.status(200)
-    res.send(result.rows)
+    res.send(cart)
   }
 }
 
