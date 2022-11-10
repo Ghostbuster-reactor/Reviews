@@ -5,10 +5,10 @@ const reviews = {
   get: async (req, res) => {
 
     //if client idle, end process
-    pool.on('error', (err, client) => {
-      console.error('Unexpected error on idle client', err)
-      process.exit(-1)
-    })
+    // pool.on('error', (err, client) => {
+    //   console.error('Unexpected error on idle client', err)
+    //   process.exit(-1)
+    // })
 
     // creates the client
     const client = await pool.connect()
@@ -36,7 +36,9 @@ const reviews = {
       // reformat response and send
       res.status(200)
       res.send({ product: queryArgs[0], page: queryArgs[1], count: queryArgs[2], results: result.rows })
-    } catch (e) { console.log(e) }
+    } catch (e) { console.log(e) } finally {
+      client.release()
+    }
   },
 
   // ----------------------------------------- POST REQUEST -----------------------------------------
