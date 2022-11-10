@@ -68,9 +68,7 @@ const reviews = {
       res.status(201)
       res.send('CREATED!')
 
-    } catch (e) { console.log(e) } finally {
-      client.release()
-    }
+    } catch (e) { console.log(e) }
   },
 
   // ----------------------------------------- META REQUEST -----------------------------------------
