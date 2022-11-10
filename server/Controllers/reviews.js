@@ -3,6 +3,16 @@ const pool = require('../../database/db.js')
 const reviews = {
   // ----------------------------------------- GET REQUEST -----------------------------------------
   get: async (req, res) => {
+
+    //if client idle, end process
+    pool.on('error', (err, client) => {
+      console.error('Unexpected error on idle client', err)
+      process.exit(-1)
+    })
+
+    // creates the client
+    const client = await pool.connect()
+
     console.log('Serving GET request')
     // set sort parameter to be a column name if listed
     if (!req.query.sort) req.query.sort = 'review_id'
@@ -14,7 +24,7 @@ const reviews = {
 
     // try query
     try {
-      const result = await pool.query(
+      const result = await client.query(
         `SELECT review_id, rating, summary, recommend, response, body, date, reviewer_name, helpfulness,
         (SELECT json_agg(json_build_object('id', photos.id, 'url', photos.url)) FROM photos WHERE review_id = reviews.review_id
         ) as photos, reported FROM reviews
@@ -56,7 +66,9 @@ const reviews = {
       res.status(201)
       res.send('CREATED!')
 
-    } catch (e) { console.log(e) }
+    } catch (e) { console.log(e) } finally {
+      client.release()
+    }
   },
 
   // ----------------------------------------- META REQUEST -----------------------------------------
@@ -112,23 +124,19 @@ const reviews = {
 
   // ----------------------------------------- TEST REQUEST -----------------------------------------
   test: async (req, res) => {
-    const limit = await pool.query(`SELECT MAX(product_id) FROM reviews`)
-    const range = limit.rows[0].max * 0.1
-
-    let cart = []
-    for (let i = 0; i < 5; i++) {
-      let temp_product_id = Math.floor(Math.random() * range) + Math.floor(limit.rows[0].max * 0.9)
-
-      let temp = await pool.query(`
-      SELECT review_id, rating, summary, recommend, response, body, date, reviewer_name, helpfulness,
-      (SELECT json_agg(json_build_object('id', photos.id, 'url', photos.url)) FROM photos WHERE review_id = reviews.review_id
-      ) as photos, reported FROM reviews
-    WHERE product_id = ${temp_product_id} AND reported = FALSE
-    LIMIT 5`)
-      cart.push(temp.rows)
+    pool.on('error', (err, client) => {
+      console.error('Unexpected error on idle client', err)
+      process.exit(-1)
+    })
+    const client = await pool.connect()
+    try {
+      const result = await client.query('SELECT * FROM meta WHERE id = $1', [1])
+      res.send(result.rows)
+    } catch (err) {
+      console.log(err.stack)
+    } finally {
+      client.release()
     }
-    res.status(200)
-    res.send(cart)
   }
 }
 
