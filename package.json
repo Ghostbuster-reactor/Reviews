@@ -8,6 +8,7 @@
     "jquery": "^3.6.1",
     "jquery-csv": "^1.0.21",
     "mongoose": "^6.7.0",
+    "morgan": "^1.10.0",
     "new-date": "^1.0.3",
     "pg": "^8.8.0",
     "pgbouncer": "^1.0.1"
